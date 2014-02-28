@@ -182,14 +182,28 @@ function xml_form_elements_creative_commons($element, &$form_state) {
     // I win form builder.
     $element['#tree'] = FALSE;
   }
-
+  
   $response = xml_form_elements_get_creative_commons($commercial, $derivatives, $jurisdiction);
-  $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = (string) $response->{'license-uri'};
-  $element['license_fieldset']['license_output'] = array(
-    '#type' => 'item',
-    '#id' => $license_output_id,
-    '#markup' => '<strong>' . t('Selected license:') . '</strong><div>' . $response->html->asXml() . '</div>',
-  );
+  if ($response !== FALSE) {
+    $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = (string) $response->{'license-uri'};
+    $element['license_fieldset']['license_output'] = array(
+      '#type' => 'item',
+      '#id' => $license_output_id,
+      '#markup' => '<strong>' . t('Selected license:') . '</strong><div>' . $response->html->asXml() . '</div>',
+    );
+  } else {
+    // Use the default
+    $license_uri = 'http://creativecommons.org/licenses/by-nc/4.0/';
+    $license_html = '<html><a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc/4.0/88x31.png"/></a><br/>This <span xmlns:dc="http://purl.org/dc/elements/1.1/" href="http://purl.org/dc/dcmitype/" rel="dc:type">work</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution 4.0 International License</a>.</html>';
+    
+    $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = $license_uri;
+    $element['license_fieldset']['license_output'] = array(
+      '#type' => 'item',
+      '#id' => $license_output_id,
+      '#markup' => '<strong>' . t('CC API Failed, using default license:') . '</strong><div>' . $license_html . '</div>',
+    );
+    
+  }
 
   return $element;
 }
@@ -219,6 +233,7 @@ function xml_form_elements_creative_commons_ajax(&$form, &$form_state) {
  *
  * @return SimpleXMLElement
  *   The return from the REST API.
+ *  whikloj (2014-02-28): This dies ALL the time, retrieving with curl and parse later.
  */
 function xml_form_elements_get_creative_commons($commercial, $derivatives, $jurisdiction) {
   $rest_url = url(
@@ -231,7 +246,15 @@ function xml_form_elements_get_creative_commons($commercial, $derivatives, $juri
       ),
     )
   );
-  return simplexml_load_file($rest_url);
+  
+  $cu = curl_init();
+  curl_setopt($cu,CURLOPT_URL,$rest_url);
+  curl_setopt($cu,CURLOPT_HEADER,0);
+  curl_setopt($cu,CURLOPT_RETURNTRANSFER,1);
+  $sXML = curl_exec($cu);
+  
+  $response = simplexml_load_string($sXML);
+  return (strlen($response) > 0 ? $response : FALSE);
 }
 
 /**
