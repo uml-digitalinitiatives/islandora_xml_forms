@@ -184,26 +184,49 @@ function xml_form_elements_creative_commons($element, &$form_state) {
   }
   
   $response = xml_form_elements_get_creative_commons($commercial, $derivatives, $jurisdiction);
-  if ($response !== FALSE) {
-    $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = (string) $response->{'license-uri'};
-    $element['license_fieldset']['license_output'] = array(
-      '#type' => 'item',
-      '#id' => $license_output_id,
-      '#markup' => '<strong>' . t('Selected license:') . '</strong><div>' . $response->html->asXml() . '</div>',
-    );
-  } else {
-    // Use the default
-    $license_uri = 'http://creativecommons.org/licenses/by-nc/4.0/';
-    $license_html = '<html><a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc/4.0/88x31.png"/></a><br/>This <span xmlns:dc="http://purl.org/dc/elements/1.1/" href="http://purl.org/dc/dcmitype/" rel="dc:type">work</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution 4.0 International License</a>.</html>';
-    
-    $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = $license_uri;
-    $element['license_fieldset']['license_output'] = array(
-      '#type' => 'item',
-      '#id' => $license_output_id,
-      '#markup' => '<strong>' . t('CC API Failed, using default license:') . '</strong><div>' . $license_html . '</div>',
-    );
-    
+  if ($response === FALSE) {
+    // Use a default license
+    $default = '<?xml version="1.0" encoding="utf-8"?>
+    <result>
+     <license-uri>http://creativecommons.org/licenses/by-nc/4.0/</license-uri>
+     <license-name>Attribution-NonCommercial 4.0 International</license-name>
+     <rdf>
+       <rdf:RDF xmlns="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+        <Work rdf:about="">
+         <license rdf:resource="http://creativecommons.org/licenses/by-nc/4.0/"/>
+        </Work>
+
+        <License rdf:about="http://creativecommons.org/licenses/by-nc/4.0/">
+          <permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+          <permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+          <permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+          <requires rdf:resource="http://creativecommons.org/ns#Attribution"/>
+          <requires rdf:resource="http://creativecommons.org/ns#Notice"/>
+        </License>
+       </rdf:RDF>
+     </rdf>
+     <licenserdf>
+      <rdf:RDF xmlns="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+       <License rdf:about="http://creativecommons.org/licenses/by-nc/4.0/">
+        <permits rdf:resource="http://creativecommons.org/ns#DerivativeWorks"/>
+        <permits rdf:resource="http://creativecommons.org/ns#Distribution"/>
+        <permits rdf:resource="http://creativecommons.org/ns#Reproduction"/>
+        <requires rdf:resource="http://creativecommons.org/ns#Attribution"/>
+        <requires rdf:resource="http://creativecommons.org/ns#Notice"/>
+       </License>
+      </rdf:RDF>
+     </licenserdf>
+     <html><a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc/4.0/88x31.png"/></a><br/>This <span xmlns:dc="http://purl.org/dc/elements/1.1/" href="http://purl.org/dc/dcmitype/" rel="dc:type">work</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.</html>
+    </result>';
+    $response = simplexml_load_string($default);
   }
+  
+  $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = (string) $response->{'license-uri'};
+  $element['license_fieldset']['license_output'] = array(
+    '#type' => 'item',
+    '#id' => $license_output_id,
+    '#markup' => '<strong>' . t('Selected license:') . '</strong><div>' . $response->html->asXml() . '</div>',
+  );
 
   return $element;
 }
@@ -249,12 +272,17 @@ function xml_form_elements_get_creative_commons($commercial, $derivatives, $juri
   
   $cu = curl_init();
   curl_setopt($cu,CURLOPT_URL,$rest_url);
-  curl_setopt($cu,CURLOPT_HEADER,0);
+  curl_setopt($cu,CURLOPT_HEADER,1);
   curl_setopt($cu,CURLOPT_RETURNTRANSFER,1);
   $sXML = curl_exec($cu);
-  
-  $response = simplexml_load_string($sXML);
-  return (strlen($response) > 0 ? $response : FALSE);
+  list($head, $body) = preg_split("/(\r?\n){2}/",$sXML);
+  $body = trim($body);
+  if (preg_match('/^HTTP\/1\.1 200/',$head)){
+    $response = simplexml_load_string($body);
+  } else { 
+    $response = FALSE;
+  }
+  return $response;
 }
 
 /**
