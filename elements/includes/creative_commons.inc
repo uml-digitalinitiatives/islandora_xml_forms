@@ -183,8 +183,10 @@ function xml_form_elements_creative_commons($element, &$form_state) {
     $element['#tree'] = FALSE;
   }
   
+  $status = 'Selected license:'; 
   $response = xml_form_elements_get_creative_commons($commercial, $derivatives, $jurisdiction);
   if ($response === FALSE) {
+    $status = 'CC API Failed, using default license:';
     // Use a default license
     $default = '<?xml version="1.0" encoding="utf-8"?>
     <result>
@@ -219,13 +221,13 @@ function xml_form_elements_creative_commons($element, &$form_state) {
      <html><a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc/4.0/88x31.png"/></a><br/>This <span xmlns:dc="http://purl.org/dc/elements/1.1/" href="http://purl.org/dc/dcmitype/" rel="dc:type">work</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.</html>
     </result>';
     $response = simplexml_load_string($default);
-  }
+  } 
   
   $form_state['storage']['xml_form_elements'][$element['#name']]['license_uri'] = (string) $response->{'license-uri'};
   $element['license_fieldset']['license_output'] = array(
     '#type' => 'item',
     '#id' => $license_output_id,
-    '#markup' => '<strong>' . t('Selected license:') . '</strong><div>' . $response->html->asXml() . '</div>',
+    '#markup' => '<strong>' . t($status) . '</strong><div>' . $response->html->asXml() . '</div>',
   );
 
   return $element;
