@@ -799,11 +799,37 @@ function xml_form_elements_creative_commons_get_uri_from_values($values) {
  *   - the associative value array for that license.
  */
 function xml_form_elements_creative_commons_get_processed_values(&$element, &$form_state) {
+
+  // Get parent
+  $name = $element['#name'];
+  if (isset($form_state) && !isset($form_state['input'][$name]) && strpos($name, "[") > -1) {
+    // element name is an array so we might need to dig to get values.
+    $parts = explode("[", $name);
+    array_walk($parts, function($o) { rtrim($o, "]");});
+    foreach ($parts as $part) {
+      if (isset($holder) && isset($value)) {
+        if (isset($holder[$part]) && isset($value[$part])) {
+          $holder = $holder[$part];
+          $value = $value[$part];
+        }
+      }
+      else if (isset($form_state['input'][$part]) && isset($form_state['values'][$part])) {
+        $holder = $form_state['input'][$part];
+        $value = $form_state['values'][$part];
+      }
+      else {
+        $holder = NULL;
+        $value = NULL;
+      }
+    }
+  }
+
+
   // Get current form values or defaults.
-  $values = isset($form_state['input'][$element['#name']]) ?
-    xml_form_elements_creative_commons_cleanup_input(is_string($form_state['values'][$element['#name']]) ?
-      xml_form_elements_creative_commons_get_values_from_uri($form_state['values'][$element['#name']]) :
-      $form_state['values'][$element['#name']]) :
+  $values = isset($holder) ?
+    xml_form_elements_creative_commons_cleanup_input(is_string($value) ?
+      xml_form_elements_creative_commons_get_values_from_uri($value) :
+      $value) :
     xml_form_elements_creative_commons_get_values_from_uri(isset($element['#default_value']) ?
       $element['#default_value'] :
       '');
