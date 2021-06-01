@@ -800,33 +800,31 @@ function xml_form_elements_creative_commons_get_uri_from_values($values) {
  */
 function xml_form_elements_creative_commons_get_processed_values(&$element, &$form_state) {
 
-  // Get parent
+  // When the CC element is nested in another element you can't
   $name = $element['#name'];
-  if (isset($form_state) && !isset($form_state['input'][$name]) && strpos($name, "[") > -1) {
+  $value = NULL;
+  if (isset($form_state) && !isset($form_state['input'][$name])) {
     // element name is an array so we might need to dig to get values.
     $parts = explode("[", $name);
-    array_walk($parts, function($o) { rtrim($o, "]");});
+    array_walk($parts, function(&$o) { $o = rtrim($o, "]");});
+
     foreach ($parts as $part) {
-      if (isset($holder) && isset($value)) {
-        if (isset($holder[$part]) && isset($value[$part])) {
-          $holder = $holder[$part];
+      if (isset($value)) {
+        if (isset($value[$part])) {
           $value = $value[$part];
         }
       }
-      else if (isset($form_state['input'][$part]) && isset($form_state['values'][$part])) {
-        $holder = $form_state['input'][$part];
+    else if (isset($form_state['input'][$part]) && isset($form_state['values'][$part])) {
         $value = $form_state['values'][$part];
-      }
-      else {
-        $holder = NULL;
-        $value = NULL;
       }
     }
   }
-
+  else if (isset($form_state['input'][$name]) && isset($form_state['values'][$name])) {
+    $value = $form_state['values'][$name];
+  }
 
   // Get current form values or defaults.
-  $values = isset($holder) ?
+  $values = isset($value) ?
     xml_form_elements_creative_commons_cleanup_input(is_string($value) ?
       xml_form_elements_creative_commons_get_values_from_uri($value) :
       $value) :
