@@ -134,7 +134,7 @@ class Namespaces implements IteratorAggregate {
    * @return ArrayIterator
    *   The ArrayIterator to run the class's array of namespaces through.
    */
-  public function getIterator() {
+  public function getIterator(): Traversable {
     $namespaces = $this->namespaces;
     if (isset($this->default)) {
       $namespaces[''] = $this->default;

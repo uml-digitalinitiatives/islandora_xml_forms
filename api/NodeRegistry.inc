@@ -56,15 +56,29 @@ class NodeRegistry implements Serializable {
    * The registered DOMNodes are converted into XPaths, since DOMNodes cannot be
    * serialized.
    *
-   * @return string
-   *   String representing the serialized object.
+   * @return array
+   *   A serializable array of this object.
+   * @see \Serializable
    */
-  public function serialize() {
+  public function __serialize(): array {
     $data = array();
     foreach ($this->registered as $key => $node) {
       $data[$key] = get_dom_node_xpath($node);
     }
-    return serialize($data);
+    return $data;
+  }
+
+  /**
+   * Serializes this object.
+   *
+   * The registered DOMNodes are converted into XPaths, since DOMNodes cannot be
+   * serialized.
+   *
+   * @return string
+   *   A string representation of this object.
+   */
+  public function serialize(): string {
+    return serialize($this->__serialize());
   }
 
   /**
@@ -73,11 +87,24 @@ class NodeRegistry implements Serializable {
    * Note that for this object to be fully functional NodeRegistry::restore()
    * must also be called after un-serialization.
    *
-   * @param string $serialized
-   *   The serialized string.
+   * @param string $data
+   *   The serialized data string.
    */
-  public function unserialize($serialized) {
-    $this->registered = unserialize($serialized);
+  public function unserialize(string $data): void {
+    $this->__unserialize(unserialize($data));
+  }
+
+  /**
+   * Un-serializes this object.
+   *
+   * Note that for this object to be fully functional NodeRegistry::restore()
+   * must also be called after un-serialization.
+   *
+   * @param array $data
+   *   The unserialized data.
+   */
+  public function __unserialize(array $data): void {
+    $this->registered = $data;
     $this->restoredRequired = TRUE;
   }
 

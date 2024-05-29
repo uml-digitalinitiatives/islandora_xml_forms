@@ -321,9 +321,11 @@ function xml_form_elements_creative_commons($element, &$form_state) {
   // Add javascript.
   $element['#attached'] = array('js' => array(drupal_get_path('module', 'xml_form_elements') . '/js/creative_commons.js'));
 
+  // Get the element in the form_state inputs if it exists.
+  $input = _xml_form_elements_creative_commons_find_input($element['#name'], $form_state);
   // If there is no input, or the temporary storage contains data (meaning
   // that the validator already exectued), populate the element with values.
-  if (!isset($form_state['input'][$element['#name']]) || isset($form_state['temporary'][$element['#name']])) {
+  if (!isset($input) || isset($form_state['temporary'][$element['#name']])) {
     _xml_form_elements_creative_commons_populate_element($element, $form_state);
   }
 
@@ -462,7 +464,24 @@ function xml_form_elements_creative_commons_validate(&$element, &$form_state, $f
   // If user submits, set the scalar value in $form_state so that form builder
   // can use it.
   if ($form_state['submitted'] && !$form_state['rebuild']) {
-    $form_state['values'][$element['#name']] = is_string($element['#value']) ? $element['#value'] : $element['#value']['license_fieldset']['license_uri'];
+    if (strpos($element['#name'], '[') > -1) {
+      // We have a nested element so we must set the license_fieldset correctly.
+      $last_holder = &$form_state['values'];
+      $elements = _xml_form_elements_creative_commons_split_nested_name($element['#name']);
+      $final_name = array_pop($elements);
+      foreach ($elements as $e) {
+        if (isset($new_holder)) {
+          $last_holder = $new_holder;
+        }
+        if (!isset($last_holder[$e])) {
+          $last_holder[$e] = array();
+        }
+        $new_holder = &$last_holder[$e];
+      }
+      $new_holder[$final_name] = is_string($element['#value']) ? $element['#value'] : $element['#value']['license_fieldset']['license_uri'];
+    } else {
+      $form_state['values'][$element['#name']] = is_string($element['#value']) ? $element['#value'] : $element['#value']['license_fieldset']['license_uri'];
+    }
   }
 }
 
@@ -799,11 +818,35 @@ function xml_form_elements_creative_commons_get_uri_from_values($values) {
  *   - the associative value array for that license.
  */
 function xml_form_elements_creative_commons_get_processed_values(&$element, &$form_state) {
+
+  // When the CC element is nested in another element you can't
+  $name = $element['#name'];
+  $value = NULL;
+  if (isset($form_state) && !isset($form_state['input'][$name])) {
+    // element name is an array so we might need to dig to get values.
+    $parts = explode("[", $name);
+    array_walk($parts, function(&$o) { $o = rtrim($o, "]");});
+
+    foreach ($parts as $part) {
+      if (isset($value)) {
+        if (isset($value[$part])) {
+          $value = $value[$part];
+        }
+      }
+    else if (isset($form_state['input'][$part]) && isset($form_state['values'][$part])) {
+        $value = $form_state['values'][$part];
+      }
+    }
+  }
+  else if (isset($form_state['input'][$name]) && isset($form_state['values'][$name])) {
+    $value = $form_state['values'][$name];
+  }
+
   // Get current form values or defaults.
-  $values = isset($form_state['input'][$element['#name']]) ?
-    xml_form_elements_creative_commons_cleanup_input(is_string($form_state['values'][$element['#name']]) ?
-      xml_form_elements_creative_commons_get_values_from_uri($form_state['values'][$element['#name']]) :
-      $form_state['values'][$element['#name']]) :
+  $values = isset($value) ?
+    xml_form_elements_creative_commons_cleanup_input(is_string($value) ?
+      xml_form_elements_creative_commons_get_values_from_uri($value) :
+      $value) :
     xml_form_elements_creative_commons_get_values_from_uri(isset($element['#default_value']) ?
       $element['#default_value'] :
       '');
@@ -1037,6 +1080,55 @@ function xml_form_elements_creative_commons_get_processed_values(&$element, &$fo
 
   // Return current values.
   return array($cc_prefix . $cc_markup, $values);
+}
+
+
+/**
+ * If the creative commons element is nested in another field, its $element[#name]
+ * will look like parent[child] but the inputs will be actual nested arrays.
+ *
+ * @param string $name the element name to locate
+ * @param mixed $form_state the form state
+ *
+ * @return array|null
+ *   return the form input or null if not found.
+ */
+function _xml_form_elements_creative_commons_find_input($name, $form_state) {
+  $value = NULL;
+  if (isset($form_state) && !isset($form_state['input'][$name])) {
+    // element name is an array so we might need to dig to get values.
+    $parts = _xml_form_elements_creative_commons_split_nested_name($name);
+
+    foreach ($parts as $part) {
+      if (isset($value)) {
+        if (isset($value[$part])) {
+          $value = $value[$part];
+        }
+      }
+      else if (isset($form_state['input'][$part]) && isset($form_state['values'][$part])) {
+        $value = $form_state['values'][$part];
+      }
+    }
+  }
+  else if (isset($form_state['input'][$name]) && isset($form_state['values'][$name])) {
+    $value = $form_state['values'][$name];
+  }
+  return $value;
+}
+
+/**
+ * Utility function to get array of nested named elements.
+ * @param $name the original name
+ * @return array|string
+ *   The array of parts of the original name split and cleaned up
+ */
+function _xml_form_elements_creative_commons_split_nested_name($name) {
+  // element name is an array so we might need to dig to get values.
+  $parts = explode("[", $name);
+  array_walk($parts, function (&$o) {
+    $o = rtrim($o, "]");
+  });
+  return $parts;
 }
 
 /**
