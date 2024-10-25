@@ -6,6 +6,7 @@
  */
 
 module_load_include('inc', 'xml_form_api', 'ActionInterface');
+module_load_include('inc', 'xml_form_api', 'XMLDocumentFragment');
 module_load_include('inc', 'xml_form_api', 'Path');
 module_load_include('inc', 'xml_form_api', 'XMLFormPrePopulator');
 module_load_include('inc', 'xml_schema_api', 'InsertOrderMap');
@@ -249,7 +250,9 @@ class Create implements ActionInterface {
     else {
       $uri = $document->namespaces->getDefaultURI();
       return (isset($uri)) ?
+        (isset($value)) ?
           $document->document->createElementNS($uri, $this->name, $value) :
+          $document->document->createElementNS($uri, $this->name) :
           $document->document->createElement($this->name, $value);
     }
   }
@@ -307,7 +310,7 @@ class Create implements ActionInterface {
     }
     $xml = strtr($this->value, array('%value%' => $value));
     $xml = "<root {$root_attributes}>$xml</root>";
-    $this->fragment = $document->document->createDocumentFragment();
+    $this->fragment = new XMLDocumentFragment($document->document);
     // Prevent Drupal from catching the error.
     libxml_use_internal_errors(TRUE);
     $number_of_errors_before = count(libxml_get_errors());
@@ -319,7 +322,7 @@ class Create implements ActionInterface {
       $error = libxml_get_last_error();
       throw new Exception($error->message);
     }
-    $root = $this->fragment->firstChild->firstChild;
+    $root = $this->fragment->getDOMDocumentFragment()->firstChild->firstChild;
     return $root;
   }
 
