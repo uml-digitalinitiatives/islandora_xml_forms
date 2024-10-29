@@ -147,7 +147,7 @@ function xml_form_builder_create_element_type_store() {
     data: $data
   });
 EOT;
-  drupal_add_js($js, array('type' => 'inline', 'scope' => JS_DEFAULT));
+  drupal_add_js($js, array('type' => 'inline', 'group' => JS_DEFAULT));
 }
 
 /**
@@ -182,7 +182,7 @@ function xml_form_builder_create_properties_store($form_name) {
  });
  Ext.formbuilder.propertiesStore.sync();
 EOT;
-  drupal_add_js($js, array('type' => 'inline', 'scope' => JS_DEFAULT));
+  drupal_add_js($js, array('type' => 'inline', 'group' => JS_DEFAULT));
 }
 
 /**
@@ -207,7 +207,7 @@ function xml_form_builder_create_element_store($form_name) {
     root: $data
  });
 EOT;
-  drupal_add_js($js, array('type' => 'inline', 'scope' => JS_DEFAULT));
+  drupal_add_js($js, array('type' => 'inline', 'group' => JS_DEFAULT));
 }
 
 /**
